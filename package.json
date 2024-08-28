@@ -8,8 +8,16 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "axios": "^1.7.4",
     "core-js": "^3.8.3",
-    "vue": "^3.2.13"
+    "crypto-js": "^4.2.0",
+    "face-api.js": "^0.22.2",
+    "form-data": "^4.0.0",
+    "mrz": "^4.2.0",
+    "mrz-parser": "^0.0.1",
+    "tesseract.js": "^5.1.0",
+    "vue": "^3.2.13",
+    "vue-router": "^4.0.13"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
