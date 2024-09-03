@@ -13,6 +13,7 @@
     "crypto-js": "^4.2.0",
     "face-api.js": "^0.22.2",
     "form-data": "^4.0.0",
+    "loglevel": "^1.9.1",
     "mrz": "^4.2.0",
     "mrz-parser": "^0.0.1",
     "tesseract.js": "^5.1.0",
