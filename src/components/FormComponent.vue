@@ -3,6 +3,12 @@
     <button type="button" @click="downloadLog" class="btn errorlog">Download Logs</button>
     <button type="button" @click="toggleApiInput" class="btn setApiUrl">Set API URL</button>
     <button type="button" @click="togglePathInput" class="btn setFolder">Set Download Folder Path</button>
+    <button type="button" @click="sendDataSoap" class="btn sendData">Send Data to Soap</button>
+
+    <div v-if="soapResponse" class="soap-response">
+      {{ soapResponse }}
+
+    </div>
 
     <div v-if="showApiInput" class="api-input-container">
       <label for="apiUrl">Enter API URL:</label>
@@ -87,7 +93,12 @@ export default {
       apiUrl: '', // Store the API URL
       folderPath: '', // Store the Folder Path
       showApiInput: false, // Control visibility of the API input field
-      showPathInput: false // Control visibility of the Path input field
+      showPathInput: false, // Control visibility of the Path input field
+      TCKN: '',
+      name: '',
+      surname: '',
+      birthYear: '',
+      soapResponse: null
     };
   },
   async mounted() {
@@ -298,6 +309,17 @@ export default {
       })
       .then(response => {
         Logger.info('Data submitted successfully, preparing to send to another API');
+        const info = response.data;
+        this.TCKN = info.TCKN;
+
+        const [surnamePart, namePart] = info.NOH.split('<<');
+    
+        // Replace '<' with spaces for surnames and names separately
+        this.surname = surnamePart.replace(/</g, ' ').trim();
+        this.name = namePart.replace(/</g, ' ').trim();
+
+        this.birthYear = info.Dogum_Tarihi.split('.')[2];
+        console.log("name: " + this.name + " surname: " + this.surname + " TCKN: " + this.TCKN + " birth year: " + this.birthYear);
         this.sendDataToAnotherAPI(response.data);
       })
       .catch(error => {
@@ -339,6 +361,33 @@ export default {
       .then(response => {
         Logger.info('Data sent to new API successfully');
         this.responseData = response.data;
+      })
+      .catch(error => {
+        Logger.error('Error sending data to new API: ' + error.message);
+        if (error.response) {
+          Logger.error('Error details: ' + error.response.data);
+        }
+      });
+    },
+    sendDataSoap(){
+      Logger.info('Sending data to backend');
+      const formData = new FormData();
+
+      formData.append('TCKimlikNo', this.TCKN || '');
+      formData.append('Ad', this.name || '');
+      formData.append('Soyad', this.surname || '');
+      formData.append('DogumYili', this.birthYear || '');
+
+      for (let [key, value] of formData.entries()) { 
+        Logger.debug(`Form data: ${key}: ${value}`);
+      }
+
+      axios.post(`http://192.168.1.158:9099/soap_request`, formData)
+      .then(response => {
+        Logger.info('Data sent to new API successfully');
+  
+        this.soapResponse = response.data.result;
+        console.log(response.data.result);
       })
       .catch(error => {
         Logger.error('Error sending data to new API: ' + error.message);
@@ -576,4 +625,33 @@ button.btn:hover {
   font-size: 14px;
   word-wrap: break-word;
 }
+
+.btn.sendData {
+  position: absolute; /* Position the button absolutely within the container */
+  top: 10px;
+  left: 10px; /* Place it on the left corner */
+  padding: 5px 10px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn.sendData:hover {
+  opacity: 0.8;
+}
+
+.soap-response {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #e0f7fa;
+    color: #00796b;
+    font-size: 14px;
+    word-wrap: break-word;
+    border: 1px solid #ccc;
+  }
+
 </style>

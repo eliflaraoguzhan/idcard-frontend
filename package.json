@@ -18,7 +18,8 @@
     "mrz-parser": "^0.0.1",
     "tesseract.js": "^5.1.0",
     "vue": "^3.2.13",
-    "vue-router": "^4.0.13"
+    "vue-router": "^4.0.13",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
