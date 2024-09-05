@@ -6,8 +6,11 @@
     <button type="button" @click="sendDataSoap" class="btn sendData">Send Data to Soap</button>
 
     <div v-if="soapResponse" class="soap-response">
-      {{ soapResponse }}
+      <p><strong>Does it exist: </strong> {{ soapResponse }}</p>
+    </div>
 
+    <div v-if="errorMessage" class="error-message">
+      {{ errorMessage }}
     </div>
 
     <div v-if="showApiInput" class="api-input-container">
@@ -69,6 +72,7 @@
   </div>
 </template>
 
+
 <script>
 import * as faceapi from 'face-api.js';
 import axios from 'axios';
@@ -98,7 +102,9 @@ export default {
       name: '',
       surname: '',
       birthYear: '',
-      soapResponse: null
+      soapResponse: null,
+      errorMessage: null
+
     };
   },
   async mounted() {
@@ -164,6 +170,7 @@ export default {
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         Logger.info('FaceAPI models loaded successfully');
       } catch (error) {
+        this.errorMessage = error.message;
         Logger.error('Failed to load FaceAPI models: ' + error.message);
       }
     },
@@ -178,6 +185,7 @@ export default {
           }
         })
         .catch((err) => {
+          this.errorMessage = err.message;
           Logger.error('Error accessing webcam: ' + err.message);
         });
     },
@@ -202,6 +210,7 @@ export default {
               this.stopCountdown(); 
             }
           } catch (error) {
+            this.errorMessage = error.message;
             Logger.error('Error in face detection: ' + error.message);
           }
         }
@@ -283,6 +292,7 @@ export default {
         Logger.debug('Field encrypted successfully');
         return encryptedBase64; 
       } catch (error) {
+        this.errorMessage = error.message;
         Logger.error('Error encrypting field: ' + error.message);
         return ''; 
       }
@@ -323,6 +333,7 @@ export default {
         this.sendDataToAnotherAPI(response.data);
       })
       .catch(error => {
+        this.errorMessage = error.message;
         Logger.error('Error submitting data: ' + error.message);
         if (error.response) {
           Logger.error('Error details: ' + error.response.data);
@@ -363,6 +374,7 @@ export default {
         this.responseData = response.data;
       })
       .catch(error => {
+        this.errorMessage = error.message;
         Logger.error('Error sending data to new API: ' + error.message);
         if (error.response) {
           Logger.error('Error details: ' + error.response.data);
@@ -390,6 +402,7 @@ export default {
         console.log(response.data.result);
       })
       .catch(error => {
+        this.errorMessage = error.message;
         Logger.error('Error sending data to new API: ' + error.message);
         if (error.response) {
           Logger.error('Error details: ' + error.response.data);
@@ -644,14 +657,12 @@ button.btn:hover {
 }
 
 .soap-response {
-    margin-top: 10px;
-    padding: 10px;
-    border-radius: 5px;
-    background-color: #e0f7fa;
-    color: #00796b;
-    font-size: 14px;
-    word-wrap: break-word;
-    border: 1px solid #ccc;
-  }
-
+  position: absolute; /* Position the button absolutely within the container */
+  top: 50px;
+  left: 10px; /* Place it on the left corner */
+  padding: 5x 1px;
+  background-color: #ccc;
+  border-radius: 5px;
+  font-size: 0.9em;
+}
 </style>

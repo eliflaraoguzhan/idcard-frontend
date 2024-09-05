@@ -10,6 +10,10 @@
       </div>
     </form>
 
+    <div v-if="error1" class="error-message">
+      {{ error1 }}
+    </div>
+
     <!-- Display the user data here -->
     <div v-if="userInfo" class="user-info">
       <p><strong>Name:</strong> {{ userInfo.Ad }}</p>
@@ -51,6 +55,7 @@ export default {
       userInfo: null,
       errorMessage: '',
       encryptionKey: 'my-secret-key-12',
+      error1: null,
     };
   },
   methods: {
@@ -68,6 +73,7 @@ export default {
         Logger.debug(`Encrypted field ${field}`);
         return encrypted.toString();
       } catch (error) {
+        this.error1 = error.message;
         Logger.error('Error encrypting field: ' + error.message);
         return '';
       }
@@ -86,6 +92,7 @@ export default {
         Logger.debug('Decrypted field successfully');
         return decrypted.toString(CryptoJS.enc.Utf8);
       } catch (error) {
+        this.error1 = error.message;
         Logger.error('Error decrypting field: ' + error.message);
         return '';
       }
@@ -117,6 +124,7 @@ export default {
           this.errorMessage = '';
         })
         .catch((error) => {
+          this.error1 = error.message;
           Logger.error('Error fetching user information: ' + error.message);
           this.userInfo = null;
           this.errorMessage = 'No user found with the given TCKN.';
