@@ -1,16 +1,16 @@
 <template>
   <div class="container">
-    <button type="button" @click="downloadLog" class="btn errorlog">Download Logs</button>
+    <button type="button" @click="downloadLog" class="btn errorlog">Download Logss</button>
     <button type="button" @click="toggleApiInput" class="btn setApiUrl">Set API URL</button>
     <button type="button" @click="togglePathInput" class="btn setFolder">Set Download Folder Path</button>
     <button type="button" @click="sendDataSoap" class="btn sendData">Send Data to Soap</button>
+    <button type="button" @click="toggleOCRInput" class="btn ocrButton">Scan with OCR</button>
+    <div v-if="showOCRInput" class="ocr-input-container">
+      <input type="file" @change="handleFileUpload" />
+    </div>
 
     <div v-if="soapResponse" class="soap-response">
       <p><strong>Does it exist: </strong> {{ soapResponse }}</p>
-    </div>
-
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
     </div>
 
     <div v-if="showApiInput" class="api-input-container">
@@ -31,10 +31,10 @@
         <input type="text" v-model="DN" placeholder="Enter Document Number" required />
       </div>
       <div class="input-group">
-        <input type="text" v-model="DT" placeholder="Enter Date of Birth" required />
+        <input type="date" v-model="DT" placeholder="Enter Date of Birth" required />
       </div>
       <div class="input-group">
-        <input type="text" v-model="GT" placeholder="Enter Expiry Date" required />
+        <input type="date" v-model="GT" placeholder="Enter Expiry Date" required />
       </div>
 
       <!-- Webcam Video or Captured Image -->
@@ -60,6 +60,7 @@
         <button type="button" @click="goToUserInfo" class="btn info">Show Information</button>
         <button type="submit" class="btn submit">Submit</button>
       </div>
+
     </form>
 
     <div v-if="responseData" class="response">
@@ -69,6 +70,12 @@
       <p><strong>Name:</strong> {{ responseData.isim }}</p>
       <p><strong>Score:</strong> {{ responseData.skor }}</p>
     </div>
+
+    <!-- Error Message-->
+    <div v-if="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+
   </div>
 </template>
 
@@ -78,6 +85,7 @@ import * as faceapi from 'face-api.js';
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import Logger from '@/logger';
+import Tesseract from 'tesseract.js';
 
 export default {
   data() {
@@ -103,7 +111,8 @@ export default {
       surname: '',
       birthYear: '',
       soapResponse: null,
-      errorMessage: null
+      errorMessage: null,
+      showOCRInput: false
 
     };
   },
@@ -170,7 +179,8 @@ export default {
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         Logger.info('FaceAPI models loaded successfully');
       } catch (error) {
-        this.errorMessage = error.message;
+        this.errorMessage = error.request.response;
+        console.log(error);
         Logger.error('Failed to load FaceAPI models: ' + error.message);
       }
     },
@@ -184,9 +194,10 @@ export default {
             this.startFaceDetection();
           }
         })
-        .catch((err) => {
-          this.errorMessage = err.message;
-          Logger.error('Error accessing webcam: ' + err.message);
+        .catch((error) => {
+          this.errorMessage = error.request.response;
+          console.log(error);
+          Logger.error('Error accessing webcam: ' + error.message);
         });
     },
     startFaceDetection() {
@@ -210,7 +221,8 @@ export default {
               this.stopCountdown(); 
             }
           } catch (error) {
-            this.errorMessage = error.message;
+            this.errorMessage = error.request.response;
+            console.log(error);
             Logger.error('Error in face detection: ' + error.message);
           }
         }
@@ -292,7 +304,8 @@ export default {
         Logger.debug('Field encrypted successfully');
         return encryptedBase64; 
       } catch (error) {
-        this.errorMessage = error.message;
+        this.errorMessage = error.request.response;
+        console.log(error);
         Logger.error('Error encrypting field: ' + error.message);
         return ''; 
       }
@@ -301,19 +314,79 @@ export default {
       Logger.info('Navigating to user info page');
       this.$router.push('/user-info');
     },
+    toggleOCRInput() {
+      this.showOCRInput = !this.showOCRInput;
+    },
+    parseDateOfBirth(ocrDate) {
+      const yearPrefix = ocrDate.substring(0, 2);
+      const month = ocrDate.substring(2, 4);
+      const day = ocrDate.substring(4, 6);
+
+      const fullYear = parseInt(yearPrefix) >= 25 ? '19' + yearPrefix : '20' + yearPrefix;
+
+      return `${fullYear}-${month}-${day}`;
+    },
+
+    parseExpiryDate(ocrDate) {
+      const yearPrefix = ocrDate.substring(0, 2);
+      const month = ocrDate.substring(2, 4);
+      const day = ocrDate.substring(4, 6);
+
+      return `20${yearPrefix}-${month}-${day}`;
+    },
+    handleFileUpload(event) {
+      const imageFile = event.target.files[0];
+      if (imageFile) {
+        Tesseract.recognize(
+          imageFile,
+          'eng',
+          {
+            logger: m => console.log(m) // Logs progress
+          }
+        ).then(({ data: { text } }) => {
+          this.handleOCRInput(text);
+        }).catch(error => {
+          this.errorMessage = 'OCR processing failed: ' + error.message;
+          console.error('OCR processing failed:', error);
+        });
+      }
+      this.toggleOCRInput();
+    },
+    handleOCRInput(ocrText) {
+      const lines = ocrText.split('\n');
+
+      const docNumber = lines[0].substring(6, 15); 
+      const dob = lines[1].substring(0, 6); 
+      const expiry = lines[1].substring(8, 14); 
+
+      // Parse the dates
+      const formattedDOB = this.parseDateOfBirth(dob);
+      const formattedExpiry = this.parseExpiryDate(expiry);
+
+      console.log(formattedDOB);
+      console.log(formattedExpiry);
+      // Set data model values
+      this.DN = docNumber;
+      this.DT = formattedDOB;
+      this.GT = formattedExpiry;
+    },
+
+    formatDate(dateString) {
+      const [year, month, day] = dateString.split('-');
+      return year.substring(2) + month + day;
+    },
     submitData() {
       Logger.info('Submitting data to server');
       const requestData = {
         DN: this.DN,
-        DT: this.DT,
-        GT: this.GT,
+        DT: this.formatDate(this.DT),
+        GT: this.formatDate(this.GT),
         PATH: this.folderPath,
         //PATH: 'C:/Users/elifl/Downloads',
         isEAC: false,
         isFaceMatch: false,
         isFaceMatchN: false,
       };
-
       axios.post(`${this.apiUrl}/api/read`, null, {
         params: requestData,
       })
@@ -324,7 +397,6 @@ export default {
 
         const [surnamePart, namePart] = info.NOH.split('<<');
     
-        // Replace '<' with spaces for surnames and names separately
         this.surname = surnamePart.replace(/</g, ' ').trim();
         this.name = namePart.replace(/</g, ' ').trim();
 
@@ -333,7 +405,8 @@ export default {
         this.sendDataToAnotherAPI(response.data);
       })
       .catch(error => {
-        this.errorMessage = error.message;
+        this.errorMessage = error.request.response;
+        console.log(error);
         Logger.error('Error submitting data: ' + error.message);
         if (error.response) {
           Logger.error('Error details: ' + error.response.data);
@@ -374,7 +447,8 @@ export default {
         this.responseData = response.data;
       })
       .catch(error => {
-        this.errorMessage = error.message;
+        console.log(error)
+        this.errorMessage = 'Error sending data to new API: ' + error.message;
         Logger.error('Error sending data to new API: ' + error.message);
         if (error.response) {
           Logger.error('Error details: ' + error.response.data);
@@ -402,7 +476,8 @@ export default {
         console.log(response.data.result);
       })
       .catch(error => {
-        this.errorMessage = error.message;
+        this.errorMessage = error.request.response;
+        console.log(error);
         Logger.error('Error sending data to new API: ' + error.message);
         if (error.response) {
           Logger.error('Error details: ' + error.response.data);
@@ -550,12 +625,30 @@ export default {
   margin-bottom: 15px;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="date"] {
   width: 100%;
-  padding: 10px;
+  max-width: 550px; 
+  padding: 12px;
+  font-size: 16px;
   margin-top: 5px;
-  border-radius: 5px;
+  border-radius: 8px;
   border: 1px solid #ccc;
+  transition: border-color 0.3s ease;
+}
+
+input[type="date"] {
+  appearance: none;
+  background-color: #fff;
+  padding-left: 10px;
+  position: relative;
+  color: #555;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 10px;
+  color: #555;
 }
 
 .video-container {
@@ -640,9 +733,9 @@ button.btn:hover {
 }
 
 .btn.sendData {
-  position: absolute; /* Position the button absolutely within the container */
+  position: absolute;
   top: 10px;
-  left: 10px; /* Place it on the left corner */
+  left: 10px; 
   padding: 5px 10px;
   background-color: #4CAF50;
   color: white;
@@ -657,12 +750,41 @@ button.btn:hover {
 }
 
 .soap-response {
-  position: absolute; /* Position the button absolutely within the container */
+  position: absolute; 
   top: 50px;
-  left: 10px; /* Place it on the left corner */
+  left: 10px; 
   padding: 5x 1px;
   background-color: #ccc;
   border-radius: 5px;
   font-size: 0.9em;
 }
+
+.btn.ocrButton {
+  position: fixed;
+  top: 10px;
+  left: 150px;
+  padding: 5px 10px;
+  background-color: #607D8B;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn.ocrButton:hover {
+  opacity: 0.8;
+}
+
+.ocr-input-container {
+  position: absolute;
+  top: 50px;
+  left: 120px;
+  padding: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 </style>

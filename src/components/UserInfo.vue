@@ -73,7 +73,7 @@ export default {
         Logger.debug(`Encrypted field ${field}`);
         return encrypted.toString();
       } catch (error) {
-        this.error1 = error.message;
+        this.error1 = error.request.response;
         Logger.error('Error encrypting field: ' + error.message);
         return '';
       }
@@ -92,7 +92,7 @@ export default {
         Logger.debug('Decrypted field successfully');
         return decrypted.toString(CryptoJS.enc.Utf8);
       } catch (error) {
-        this.error1 = error.message;
+        this.error1 = error.request.response;
         Logger.error('Error decrypting field: ' + error.message);
         return '';
       }
@@ -124,7 +124,7 @@ export default {
           this.errorMessage = '';
         })
         .catch((error) => {
-          this.error1 = error.message;
+          this.error1 = error.request.response;
           Logger.error('Error fetching user information: ' + error.message);
           this.userInfo = null;
           this.errorMessage = 'No user found with the given TCKN.';
